@@ -19,7 +19,7 @@ def _init_(input_path, output_path):
     output_path = os.path.expanduser(output_path)
 
     translate(input_path, output_path)
-
+sadhad
     print 'Done.'
 
 def translate(_in, _out):

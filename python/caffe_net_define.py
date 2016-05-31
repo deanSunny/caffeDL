@@ -17,14 +17,14 @@ def conv_relu(bottom, ks, nout, stride = 2, pad = 0, group = 1):
 	return conv, L.ReLU(conv, in_place = True)
 
 def fc_relu(bottom, nout):
-	fc = L.InnerProduct(bottom, numoutput = nout)
+	fc = L.InnerProduct(bottom, num_output = nout)
 	return fc, L.ReLU(fc, in_place = True)
 
 def max_pool(bottom, ks, stride = 1):
 	return L.Pooling(bottom, pool = P.Pooling.MAX, kernel_size = ks, stride = stride)
 
 def alexnet_ava_finetuning(hdf5, batch_size = 256, include_acc = False):
-	data, label = L.Data(source = hdf5, backend = P.Data.HDF5, batch_size = batch_size, ntop = 2) # no transform_param in HDF5.
+	data, label = L.HDF5Data(source = hdf5, batch_size = batch_size, ntop = 2) # no transform_param in HDF5.
 
 	conv1, relu1 = conv_relu(data, 11, 96, stride = 4)
 	norm1 = L.LRN(conv1, local_size = 5, alpha = 1e-4, beta = 0.75)
@@ -41,7 +41,8 @@ def alexnet_ava_finetuning(hdf5, batch_size = 256, include_acc = False):
 	fc7, relu7 = fc_relu(drop6, 4096)
 	drop7 = L.Dropout(relu7, in_place = True)
 	fc8_f = L.InnerProduct(drop7, num_output = 10)
-	loss = L.SigmoidCrossEntripyLoss(fc8_f, label)
+	
+	loss = L.SigmoidCrossEntripyLoss(fc8_f, label)#Loss function can change whatever you need.
 
 	if include_acc:
 		acc = L.Accuracy(fc8_f, label)
@@ -50,15 +51,15 @@ def alexnet_ava_finetuning(hdf5, batch_size = 256, include_acc = False):
 		return to_proto(loss)
 
 
-	def make_alexnet_ava():
-		with open('/home/u514/DTask/data/AVA/CNN_proto/ava_alex_train.prototxt', 'w') as f:
-			print(alexnet_ava_finetuning(data, batch_size = 100, include_acc = False), file = f)
+def make_alexnet_ava():
+	with open('/home/u514/DTask/data/AVA/CNN_proto/ava_alex_CEL_train.prototxt', 'w') as f:
+		print >> f, alexnet_ava_finetuning('/home/u514/DTask/data/AVA/ava_train.txt', batch_size = 100, include_acc = False)
 		
-		with open('/home/u514/DTask/data/AVA/CNN_proto/ava_alex_test.prototxt', 'w') as f:
-			print(alexnet_ava_finetuning(data, batch_size = 100, include_acc = False), file = f)
+	with open('/home/u514/DTask/data/AVA/CNN_proto/ava_alex_CEL_test.prototxt', 'w') as f:
+		print >> f, alexnet_ava_finetuning('/home/u514/DTask/data/AVA/ava_test.txt', batch_size = 100, include_acc = False)
 
 
 
-	if __name__ == '__main__':
-		make_alexnet_ava()
+if __name__ == '__main__':
+	make_alexnet_ava()
 
