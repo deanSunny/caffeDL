@@ -48,8 +48,8 @@ def extract_features_from_CNN(image_path_root, save_path_root, layername):
     filename = []
 
     gpu_id = 3 # [0, 1, 2, 3] -> k40's ID
-    batch_size = 3 
-    raw_image_size = 256
+    batch_size = 50 
+    raw_image_size = 255.0
     crop_size = 224
 
     net, transformer = init_caffe_net(gpu_id, raw_image_size, crop_size, batch_size)
