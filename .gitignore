@@ -3,3 +3,7 @@
 .DS_Store
 desktop.ini
 
+# media files
+*.jpg
+*.mp4
+*.png
