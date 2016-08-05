@@ -7,3 +7,6 @@ desktop.ini
 *.jpg
 *.mp4
 *.png
+
+# mat
+*.mat
