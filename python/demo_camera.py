@@ -88,20 +88,20 @@ def load_video(video_path):
         if not ret:
             break
 #        cv2.imshow('Camera', frame)
-        th1 = threading.Thread(target=camera_show, args=(frame,))
-#        th1.start()
-        threads.append(th1)
-        
-        th2 = threading.Thread(target=demo, args=(net, frame, flag,))
-#        th2.start()
-        threads.append(th2)
-        for th in threads:
-            th.start()
-        for th in threads:
-            th.join()
-        
+#        th1 = threading.Thread(target=camera_show, args=(frame,))
+##        th1.start()
+#        threads.append(th1)
+#        
+#        th2 = threading.Thread(target=demo, args=(net, frame, flag,))
+##        th2.start()
+#        threads.append(th2)
+#        for th in threads:
+#            th.start()
+#        for th in threads:
+#            th.join()
+        camera_show(frame)
         key = cv2.waitKey(1)        
-#        demo(net, frame, flag)
+        demo(net, frame, flag)
         if key & 0xFF == ord('q'):
             break
         flag += 1
@@ -146,9 +146,9 @@ def vis_detections(im, class_name, dets, flag,thresh=0.5):
     plt.axis('off')
     plt.tight_layout()
     plt.draw()
-#    plt.show()
-#    plt.savefig('/home/dean/Files/result/test{}.jpg'.format(flag))
-
+    plt.show()
+    plt.savefig('/home/dean/Data/result/test{}.jpg'.format(flag))
+    return plt
 def demo(net, im, flag):
     """Detect object classes in an image using pre-computed object proposals."""
 
