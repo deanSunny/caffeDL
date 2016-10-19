@@ -116,44 +116,60 @@ def get_required_obj(net, args):
     
 def calc_required_obj_features(net, args):
     '''
+    
     '''
 
     return features, cls 
 
 def create_video_obj(net, args, v_path, cls_ind, max_frame):
     '''
+    using faster-rcnn get object with per image.
     '''
-    cache_file = 'frame.pkl'
+    os.mkdir('cache')
+    cache_file = 'cache/frame.pkl'
+    cache_crop_file = 'cache/crop_frame.pkl'
+    cache_dets_file = 'cache/dets.pkl'
     vw_cap = Video('v', v_path).cap_V
     max_frame_num = vw_cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
     if max_frame <= max_frame_num:
         max_frame_num = max_frame
+    
+    frame_list = []    
     ret, frame = vw_cap.read()
-    f_im = np.array(frame)
     tag = 1
     cache_crops = []
-    
-    while ret is True:
-        if tag > max_frame_num:
-            break
-        else:
-            print 'The {} images are under processing.'.format(tag)
-            tag += 1
-        im = f_im[:, :, (2, 1, 0)]
-        scores, boxes = im_detect(net, im)
-        im_PIL = Image.fromarray(f_im)
-
-        crop_im = calc_dets(scores, boxes, im_PIL, cls_ind)
-        cache_crops.append(crop_im)
-        with open(cache_file, 'wb') as cc:
-            cPicle.dump(f_im, cc, tag) #tag
-        ret, frame = vw_cap.read()
-        f_im = np.array(frame)
-    vw_cap.release()
-    return cache_crops, cache_file
+    cache_dets = []
+    with open(cache_file, 'wb') as cf, open(cache_crop_file, 'wb') as ccf,        open(cache_dets_file, 'wb') as cdf:
+        while ret is True:
+            if tag > max_frame_num:
+                break
+            else:
+                print 'The {} images are under processing.'.format(tag)
+                tag += 1
+            f_im = np.array(frame)
+            frame_list.append(f_im)
+            im = f_im[:, :, (2, 1, 0)]
+            scores, boxes = im_detect(net, im)
+            im_PIL = Image.fromarray(f_im)
+            
+            crop_im, dets = calc_dets(scores, boxes, im_PIL, cls_ind)
+            cache_crops.append(crop_im)
+            cache_dets.append(dets)
+#                cPicle.dump(f_im, cc) #tag
+            ret, frame = vw_cap.read()
+            f_im = np.array(frame)
+        vw_cap.release()
+        frame_dict = dict(zip(range(1, max_frame_num + 1), frame_list))
+#        dets_dict = dict(zip(range(1, max_frame_num + 1), ))
+        cPickle.dump(frame_dict, cf)
+        cPickle.dump(cache_crops, ccf)
+        cPickle.dump(cache_dets, cdf)
+        
+    return cache_crop_file, cache_file, cache_dets
 
 def calc_dets(scores, boxes, im, cls_ind, CONF_THRESH=0.8):
     '''
+    calculate bouding boxes within per image.
     '''
     NMS_THRESH = 0.3
 #    for cls_ind, cls in enumerate(CLASSES[1:]):
@@ -190,8 +206,17 @@ def calc_dets(scores, boxes, im, cls_ind, CONF_THRESH=0.8):
         resize_im = np.array(resize_im) + origin_im
         crop_im.append(resize_im)
     
-    return crop_im
-            
+    return crop_im, dets
+
+def get_data_from_cache(cache_file):
+    '''
+    get data from binary files.
+    '''
+    if not os.path.exists(cache_file):
+        raise IOError('no such file exists, please check it out.')
+    
+    return cPickle.load(cache_file)
+           
 def crop_resize_rate(len_, sta_input):
     '''
     return the rate of image which should be resized.
@@ -199,10 +224,12 @@ def crop_resize_rate(len_, sta_input):
     rate = float(sta_input) / float(len_)
     return rate
 
-def calc_video_obj_features(net, crop_im, cache_file):
+def calc_video_obj_features(net, im_file, crop_file):
     '''
     '''
-    
+    features = []
+    crop_im = get_data_from_cache(crop_file)
+    feature = extract_feature(net, 'fc7')
     return features
     
 def calc_distance(target_features, proposal_features):
@@ -211,11 +238,14 @@ def calc_distance(target_features, proposal_features):
     
     return dist
 
-def extract_features(net, layser, features):
+def extract_feature(net, layer, im):
     '''
     extract features from CNN.
     '''
-    
+    net.blobs['data'].data = im
+    net.forward()
+    feature = net.blobs[layer].data
+    return feature
 
 def evaluation(dist):
     '''
