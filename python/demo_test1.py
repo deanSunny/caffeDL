@@ -21,6 +21,7 @@ from timer import Timer
 from video_wrapper import Video
 import caffe
 
+__MAX = 999999
 CLASSES = ('__background__',
            'aeroplane', 'bicycle', 'bird', 'boat',
            'bottle', 'bus', 'car', 'cat', 'chair',
@@ -114,11 +115,12 @@ def get_required_obj(net, args):
 #    print scores, boxes
     return scores, boxes
     
-def calc_required_obj_features(net, args):
+def calc_required_obj_features(net, args, im):
     '''
+    calculate required object CNN features.
+    '''
+    features, cls = extract_feature(net, 'fc7', im)
     
-    '''
-
     return features, cls 
 
 def create_video_obj(net, args, v_path, cls_ind, max_frame):
@@ -139,7 +141,7 @@ def create_video_obj(net, args, v_path, cls_ind, max_frame):
     tag = 1
     cache_crops = []
     cache_dets = []
-    with open(cache_file, 'wb') as cf, open(cache_crop_file, 'wb') as ccf,        open(cache_dets_file, 'wb') as cdf:
+    with open(cache_file, 'wb') as cf, open(cache_crop_file, 'wb') as ccf, open(cache_dets_file, 'wb') as cdf:
         while ret is True:
             if tag > max_frame_num:
                 break
@@ -196,7 +198,6 @@ def calc_dets(scores, boxes, im, cls_ind, CONF_THRESH=0.8):
         tmp_im = im.crop(region)
 #            tmp_im = np.array(tmp_im)
         w, h = tmp_im.size
-#            if w / 224 >= h / 224:
         if w >= h:
             rate = crop_resize_rate(w, 224)
         else:
@@ -227,32 +228,64 @@ def crop_resize_rate(len_, sta_input):
 def calc_video_obj_features(net, im_file, crop_file):
     '''
     '''
-    features = []
+    frame_features = []
     crop_im = get_data_from_cache(crop_file)
-    feature = extract_feature(net, 'fc7')
-    return features
+    frame_num = len(crop_im)
+    for frame_ind in xrange(frame_num):
+        frame = crop_im[frame_ind]
+        im_num = len(frame)
+        im_features = []
+        for im_ind in xrange(im_num):
+            rec_im = frame[im_num]
+            feature, _ = extract_feature(net, 'fc7', rec_im)
+            im_features.append(feature)
+        frame_features.append(im_features)
+    return frame_features
     
 def calc_distance(target_features, proposal_features):
     '''
+    calculate distance.
     '''
-    
-    return dist
+    dists = []
+    frame_num = len(proposal_features)
+    for frame_ind in xrange(frame_num):
+        frame_f = proposal_features[frame_ind]
+        obj_num = len(frame_f)
+        for obj_ind in xrange(obj_num):
+            obj_f = frame_f[obj_ind]
+            if len(obj_f) == 0:
+                dist = __MAX
+            else:
+                dist = np.sqrt(np.sum(np.square(target_features - obj_f)))
+            ret = evaluation(dist, threshold=1)
+            
+    return dists
 
 def extract_feature(net, layer, im):
     '''
     extract features from CNN.
     '''
+    feature = []
+    if len(im) == 0:
+        return feature
     net.blobs['data'].data = im
     net.forward()
     feature = net.blobs[layer].data
-    return feature
+    probData = net.blobs['prob'].data
+    predict_cls = np.argmax(probData)
+    
+    return feature, predict_cls
 
-def evaluation(dist):
+def evaluation(dist, threshold=10):
     '''
     '''
-    pass 
+    if dist >= threshold:
+        return 0
+    else:
+        return 1
+     
         
-def user():
+def user_window():
     '''
     '''
     pass
@@ -268,13 +301,13 @@ def demo():
     net_cnn = init_net_cnn(prototxt_cnn, caffemodel_cnn, args.gpu_id)
     
     re_obj_f, re_cls = calc_required_obj_features(net_cnn, args)    
-    
+    #
     prototxt_faster_rcnn = ''
     caffemodel_faster_rcnn = ''
     net_faster_rcnn = init_net_faster_rcnn(prototxt_faster_rcnn, 
                                            caffemodel_faster_rcnn, args.gpu_id)
     crop_im = create_video_obj(net_faster_rcnn, args, args.v_input, re_cls, args.max_frame)
-    
+    #
     net_cnn = init_net_cnn(prototxt_cnn, caffemodel_cnn, args.gpu_id)
     proposal_features = calc_video_obj_features(net_cnn, crop_im)
     
@@ -289,7 +322,3 @@ def demo():
 if __name__ == '__main__':
     demo()
 #    calc_dets("", "")
-    
-    
-
-
